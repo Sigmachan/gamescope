@@ -43,6 +43,31 @@ under COSMIC (Wayland).
    the AMD plane props are absent, and that HDR output is correct — rather than
    silently producing a wrong/clipped image.
 
+## Known crash: SPIR-V compiler SEGV on driver 610 (Blackwell)
+
+On driver 610.43.02 (RTX 5090), gamescope reproducibly **SIGSEGVs while compiling
+its composite/upscale shaders**, inside the NVIDIA SPIR-V→NVVM compiler. It dies
+right after backend init / EDID patch, before the first swapchain; nested clients
+then report `failed to read Wayland events: Broken pipe`.
+
+Backtrace (coredumpctl):
+
+```
+Signal: 11 (SEGV)
+#0  libnvidia-glvkspirv.so.610.43.02 + 0x9dd20
+...
+#10 _nv002nvvm (libnvidia-glvkspirv.so.610.43.02 + 0xa2816)
+#11 libnvidia-eglcore.so.610.43.02 + 0xd3061d
+```
+
+Notes:
+- Not the shader disk cache — purging `~/.cache/nvidia` and setting
+  `__GL_SHADER_DISK_CACHE=0` does not help.
+- Affects both nested and standalone (`--backend drm`) paths — same compile step.
+- Next: bisect which composite/upscale shader trips the compiler, capture a
+  minimal repro, file with NVIDIA, and add a gamescope-side fallback so startup
+  degrades instead of crashing.
+
 ## Testing
 
 ```sh
