@@ -1,0 +1,56 @@
+# Maintainer: Kira (Sigmachan)
+# wayscope — Sigmachan's gamescope fork: bazzite QoL + ChimeraOS gamescope-plus
+# features + NVIDIA/Blackwell fixes, curated for desktop RTX 5090 + HDR.
+#
+# Keeps the `gamescope` binary name (Steam / VkLayer_FROG_gamescope_wsi compat);
+# `provides`/`conflicts` the stock gamescope so it drops in cleanly.
+#
+# Build from the local checkout (default branch gamescope-plus-nvidia):
+#   cd packaging && makepkg -si
+pkgname=wayscope-git
+pkgver=r1
+pkgrel=1
+pkgdesc="wayscope: Sigmachan's gamescope fork (bazzite + gamescope-plus + NVIDIA/Blackwell, curated for desktop HDR)"
+arch=('x86_64')
+url="https://github.com/Sigmachan/gamescope"
+license=('BSD')
+provides=('gamescope' 'wayscope')
+conflicts=('gamescope')
+depends=(
+  'libcap' 'libdrm' 'libinput' 'libxcb' 'libxcomposite' 'libxcursor'
+  'libxdamage' 'libxext' 'libxkbcommon' 'libxmu' 'libxrender' 'libxres'
+  'libxtst' 'libxxf86vm' 'pixman' 'seatd' 'vulkan-icd-loader' 'wayland'
+  'xcb-util-errors' 'xcb-util-wm' 'xorg-xwayland' 'pipewire' 'libavif'
+  'libdecor' 'glm' 'stb' 'sdl2'
+)
+makedepends=(
+  'git' 'meson' 'ninja' 'cmake' 'glslang' 'vulkan-headers'
+  'wayland-protocols' 'benchmark' 'libxkbcommon' 'hwdata'
+)
+optdepends=('mangohud: mangoapp performance overlay')
+options=('!lto')
+source=("$pkgname::git+file://${PKGBUILD_LOCAL_REPO:-$HOME/dev/gamescope}#branch=gamescope-plus-nvidia")
+sha256sums=('SKIP')
+
+pkgver() {
+  cd "$pkgname"
+  printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+build() {
+  cd "$pkgname"
+  git submodule update --init --recursive 2>/dev/null || true
+  arch-meson build \
+    -Dbuildtype=release \
+    -Dpipewire=enabled \
+    -Davif_screenshots=enabled
+  meson compile -C build
+}
+
+package() {
+  cd "$pkgname"
+  meson install -C build --destdir "$pkgdir"
+  install -Dm755 contrib/wayscope "$pkgdir/usr/bin/wayscope"
+  ln -sf wayscope "$pkgdir/usr/bin/gamescope-launch"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE" 2>/dev/null || true
+}
