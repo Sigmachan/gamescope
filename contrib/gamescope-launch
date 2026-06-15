@@ -13,6 +13,7 @@ CONF="${COSMIC_GAMESCOPE_CONF:-${XDG_CONFIG_HOME:-$HOME/.config}/cosmic-gamescop
 # defaults (mirror GamingConf::default in cosmic-settings)
 OUT_WIDTH=3840 OUT_HEIGHT=2160 RENDER_SCALE=100 UPSCALER=auto SHARPNESS=2
 FPS_LIMIT=0 HDR=0 ADAPTIVE_SYNC=1 MANGOAPP=0 FORCE_GRAB_CURSOR=0 STEAM=0 PREFER_DISCRETE=1
+NV_SMOOTH_MOTION=0 NV_REFLEX=1 NV_VIBRANCE=0 NV_DLDSR=0
 
 if [ -r "$CONF" ]; then
     while IFS='=' read -r key val; do
@@ -20,10 +21,24 @@ if [ -r "$CONF" ]; then
         [ -z "$key" ] && continue
         case "$key" in
             OUT_WIDTH|OUT_HEIGHT|RENDER_SCALE|UPSCALER|SHARPNESS|FPS_LIMIT|HDR|\
-            ADAPTIVE_SYNC|MANGOAPP|FORCE_GRAB_CURSOR|STEAM|PREFER_DISCRETE)
+            ADAPTIVE_SYNC|MANGOAPP|FORCE_GRAB_CURSOR|STEAM|PREFER_DISCRETE|\
+            NV_SMOOTH_MOTION|NV_REFLEX|NV_VIBRANCE|NV_DLDSR)
                 printf -v "$key" '%s' "$val" ;;
         esac
     done < "$CONF"
+fi
+
+# NVIDIA gaming features (env-based; harmless on non-NVIDIA)
+if [ -e /dev/nvidia0 ]; then
+    [ "$NV_SMOOTH_MOTION" = "1" ] && export NVPRESENT_ENABLE_SMOOTH_MOTION=1
+    if [ "$NV_REFLEX" = "1" ]; then
+        export PROTON_ENABLE_NVAPI=1 DXVK_ENABLE_NVAPI=1
+    fi
+    [ "$NV_DLDSR" = "1" ] && export __GL_DLDSR_MULTIPLIER=2.25
+    # digital vibrance via nvibrant, if installed (Wayland-capable)
+    if [ "$NV_VIBRANCE" -ne 0 ] 2>/dev/null && command -v nvibrant >/dev/null; then
+        nvibrant "$NV_VIBRANCE" >/dev/null 2>&1 || true
+    fi
 fi
 
 args=( -W "$OUT_WIDTH" -H "$OUT_HEIGHT" )
